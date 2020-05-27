@@ -959,12 +959,13 @@ PHP_METHOD(Redis, pconnect)
 PHP_REDIS_API int
 redis_connect(INTERNAL_FUNCTION_PARAMETERS, int persistent)
 {
-    zval *object;
+    zval *object, *ssl = NULL, *z_ele;
     char *host = NULL, *persistent_id = NULL;
     zend_long port = -1, retry_interval = 0;
     size_t host_len, persistent_id_len;
     double timeout = 0.0, read_timeout = 0.0;
     redis_object *redis;
+    zend_string *zkey;
 
 #ifdef ZTS
     /* not sure how in threaded mode this works so disabled persistence at
@@ -973,10 +974,10 @@ redis_connect(INTERNAL_FUNCTION_PARAMETERS, int persistent)
 #endif
 
     if (zend_parse_method_parameters(ZEND_NUM_ARGS(), getThis(),
-                                     "Os|lds!ld", &object, redis_ce, &host,
+                                     "Os|lds!lda", &object, redis_ce, &host,
                                      &host_len, &port, &timeout, &persistent_id,
                                      &persistent_id_len, &retry_interval,
-                                     &read_timeout) == FAILURE)
+                                     &read_timeout, &ssl) == FAILURE)
     {
         return FAILURE;
     }
@@ -1015,6 +1016,13 @@ redis_connect(INTERNAL_FUNCTION_PARAMETERS, int persistent)
 
     redis->sock = redis_sock_create(host, host_len, port, timeout, read_timeout, persistent,
         persistent_id, retry_interval);
+
+    if (ssl != NULL) {
+        redis->sock->stream_ctx = php_stream_context_alloc();
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(ssl), zkey, z_ele) {
+            php_stream_context_set_option(redis->sock->stream_ctx, "ssl", ZSTR_VAL(zkey), z_ele);
+        } ZEND_HASH_FOREACH_END();
+    }
 
     if (redis_sock_server_open(redis->sock) < 0) {
         if (redis->sock->err) {

@@ -1921,7 +1921,7 @@ PHP_REDIS_API int redis_sock_connect(RedisSock *redis_sock)
     redis_sock->stream = php_stream_xport_create(host, host_len,
         0, STREAM_XPORT_CLIENT | STREAM_XPORT_CONNECT,
         persistent_id ? ZSTR_VAL(persistent_id) : NULL,
-        tv_ptr, NULL, &estr, &err);
+        tv_ptr, redis_sock->stream_ctx, &estr, &err);
 
     if (persistent_id) {
         zend_string_release(persistent_id);
